@@ -53,6 +53,13 @@ _countSize = input.int(14, title = 'Countdown Size', group = 'Text Size', minval
 _dateSize = input.int(14, title = 'Date Size', group = 'Text Size', minval = 1, tooltip = 'Font size in points')
 _atrSize = input.int(14, title = 'ATR Size', group = 'Text Size', minval = 1, tooltip = 'Font size in points')
 _rangeSize = input.int(14, title = 'Range Size', group = 'Text Size', minval = 1, tooltip = 'Font size in points')
+
+// BOLD STYLE TOGGLES
+_symBold = input.bool(true, title = 'Symbol Bold?', group = 'Bold Style')
+_countBold = input.bool(true, title = 'Countdown Bold?', group = 'Bold Style')
+_dateBold = input.bool(true, title = 'Date Bold?', group = 'Bold Style')
+_rangeBold = input.bool(true, title = 'Range Bold?', group = 'Bold Style')
+_atrBold = input.bool(true, title = 'ATR Bold?', group = 'Bold Style')
 //#endregion
 
 //#region[LOGIC]
@@ -108,31 +115,47 @@ daily_range = in_session ? math.abs(session_high - session_low) : na
 //#region[PLOT]
 // Symbol Info Display
 if _showInfo
-    show_range_row = _showDailyRange and not na(daily_range)
-    cols = 1
-    cols += _showCountdown ? 1 : 0
-    cols += _showIdate ? 1 : 0
-    cols += _showDailyATR ? 1 : 0
-    cols += show_range_row ? 1 : 0
-    _info = table.new(infoLOC, 1, cols, frame_color = _color2, frame_width = _showBrdr2 ? 0 : 1, border_width = 1, border_color = color.black)
-    colIndex = 0
+    show_range = _showDailyRange and not na(daily_range)
+    show_atr = _showDailyATR
+    show_vol_row = show_range or show_atr
+    rows = 0
+    rows += _showIsym ? 1 : 0
+    rows += _showCountdown ? 1 : 0
+    rows += _showIdate ? 1 : 0
+    rows += show_vol_row ? 1 : 0
+    _info = table.new(infoLOC, 3, rows, frame_color = _color2, frame_width = _showBrdr2 ? 0 : 1, border_width = 1, border_color = color.black)
+    row = 0
     if _showIsym
-        table.cell(_info, 0, colIndex, syminfo.root+ '  ' + tf, text_color = _color2, text_halign = 'center', text_size = _symSize, bgcolor = _bgcolor2, text_formatting = text.format_bold)
-        colIndex += 1
+        table.merge_cells(_info, 0, row, 2, row)
+        sym_fmt = _symBold ? text.format_bold : text.format_none
+        table.cell(_info, 0, row, syminfo.root+ '  ' + tf, text_color = _color2, text_halign = 'center', text_size = _symSize, bgcolor = _bgcolor2, text_formatting = sym_fmt)
+        row += 1
     if _showCountdown
+        table.merge_cells(_info, 0, row, 2, row)
         countdown_value = countdown(timeframe.period)
         if countdown_value != ""
-            table.cell(_info, 0, colIndex, countdown_value, text_color = _color2, text_halign = 'center', text_size = _countSize, bgcolor = _bgcolor2, text_font_family = font.family_monospace, text_formatting = text.format_bold)
-        colIndex += 1
+            count_fmt = _countBold ? text.format_bold : text.format_none
+            table.cell(_info, 0, row, countdown_value, text_color = _color2, text_halign = 'center', text_size = _countSize, bgcolor = _bgcolor2, text_font_family = font.family_monospace, text_formatting = count_fmt)
+        row += 1
     if _showIdate
-        table.cell(_info, 0, colIndex, date, text_color = _color2, text_halign = 'center', text_size = _dateSize, bgcolor = _bgcolor2, text_font_family = font.family_monospace, text_formatting = text.format_bold)
-        colIndex += 1
-    if _showDailyATR
-        atr_text = 'ATR(14): ' + str.tostring(daily_atr, '#.##')
-        table.cell(_info, 0, colIndex, atr_text, text_color = _color2, text_halign = 'center', text_size = _atrSize, bgcolor = _bgcolor2, text_font_family = font.family_monospace, text_formatting = text.format_bold)
-        colIndex += 1
-    if show_range_row
-        range_text = 'Range: ' + str.tostring(daily_range, '#.##')
-        table.cell(_info, 0, colIndex, range_text, text_color = _color2, text_halign = 'center', text_size = _rangeSize, bgcolor = _bgcolor2, text_font_family = font.family_monospace, text_formatting = text.format_bold)
-        colIndex += 1
+        table.merge_cells(_info, 0, row, 2, row)
+        date_fmt = _dateBold ? text.format_bold : text.format_none
+        table.cell(_info, 0, row, date, text_color = _color2, text_halign = 'center', text_size = _dateSize, bgcolor = _bgcolor2, text_font_family = font.family_monospace, text_formatting = date_fmt)
+        row += 1
+    if show_vol_row
+        if show_range and show_atr
+            range_fmt = _rangeBold ? text.format_bold : text.format_none
+            atr_fmt = _atrBold ? text.format_bold : text.format_none
+            table.cell(_info, 0, row, str.tostring(daily_range, '#.##'), text_color = _color2, text_halign = 'center', text_size = _rangeSize, bgcolor = _bgcolor2, text_font_family = font.family_monospace, text_formatting = range_fmt)
+            table.cell(_info, 1, row, '|', text_color = _color2, text_halign = 'center', text_size = math.max(_rangeSize, _atrSize), bgcolor = _bgcolor2)
+            table.cell(_info, 2, row, str.tostring(daily_atr, '#.##'), text_color = _color2, text_halign = 'center', text_size = _atrSize, bgcolor = _bgcolor2, text_font_family = font.family_monospace, text_formatting = atr_fmt)
+        else if show_range
+            table.merge_cells(_info, 0, row, 2, row)
+            range_fmt = _rangeBold ? text.format_bold : text.format_none
+            table.cell(_info, 0, row, str.tostring(daily_range, '#.##'), text_color = _color2, text_halign = 'center', text_size = _rangeSize, bgcolor = _bgcolor2, text_font_family = font.family_monospace, text_formatting = range_fmt)
+        else if show_atr
+            table.merge_cells(_info, 0, row, 2, row)
+            atr_fmt = _atrBold ? text.format_bold : text.format_none
+            table.cell(_info, 0, row, str.tostring(daily_atr, '#.##'), text_color = _color2, text_halign = 'center', text_size = _atrSize, bgcolor = _bgcolor2, text_font_family = font.family_monospace, text_formatting = atr_fmt)
+        row += 1
 //#endregion
