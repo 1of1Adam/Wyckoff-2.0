@@ -63,6 +63,8 @@ _showIsym = input.bool(true, title = 'Symbol?', inline = 's2.3', group = 'Symbol
 _showIdate = input.bool(false, title = 'Date?', inline = 's2.3', group = 'Symbol Info')
 _showCountdown = input.bool(true, title = 'Countdown?', inline = 's2.3', group = 'Symbol Info')
 _showNYCtime = input.bool(true, title = 'Show NYC Time?', inline = 's2.3', group = 'Symbol Info')  // 新增纽约时间选项
+_showDailyATR = input.bool(true, title = 'Daily ATR(14)?', inline = 'v1', group = 'Volatility')
+_showDailyRange = input.bool(true, title = 'Daily Range?', inline = 'v1', group = 'Volatility')
 //#endregion
 
 //#region[LOGIC]
@@ -96,12 +98,41 @@ countdown_tf = countdown(timeframe.period)
 
 // 纽约时间
 nyc_time_fixed = nyc_clock_fixed()
-//#endregion 
+
+// 日 ATR(14)
+daily_atr = request.security(syminfo.tickerid, '1D', ta.atr(14))
+
+// 纽约交易时段检测 (9:30-16:00)
+in_session = not na(time(timeframe.period, '0930-1600', 'America/New_York'))
+
+// 记录日内最高价和最低价
+var float session_high = na
+var float session_low = na
+var int session_day = na
+ny_day = dayofmonth(time, 'America/New_York')
+
+if in_session and ny_day != session_day
+    session_high := high
+    session_low := low
+    session_day := ny_day
+else if in_session
+    session_high := na(session_high) ? high : math.max(session_high, high)
+    session_low := na(session_low) ? low : math.min(session_low, low)
+
+// 仅在交易时段内计算日内波动区间
+daily_range = in_session ? session_high - session_low : na
+//#endregion
 
 //#region[PLOT]
 // Symbol Info Display
 if _showInfo
-    cols = 1 + (_showCountdown ? 1 : 0) + (_showIdate ? 1 : 0)
+    show_range_row = _showDailyRange and not na(daily_range)
+    cols = 1
+    cols += _showCountdown ? 1 : 0
+    cols += _showIdate ? 1 : 0
+    cols += _showNYCtime ? 1 : 0
+    cols += _showDailyATR ? 1 : 0
+    cols += show_range_row ? 1 : 0
     _info = table.new(infoLOC, 1, cols, frame_color = _color2, frame_width = _showBrdr2 ? 0 : 1, border_width = 1, border_color = color.black)
     colIndex = 0
     if _showIsym
@@ -114,4 +145,16 @@ if _showInfo
         colIndex += 1
     if _showIdate
         table.cell(_info, 0, colIndex, date, text_color = _color2, text_halign = 'center', text_size = 11, bgcolor = _bgcolor2, text_font_family = font.family_monospace, text_formatting = text.format_bold)
+        colIndex += 1
+    if _showNYCtime
+        table.cell(_info, 0, colIndex, nyc_time_fixed, text_color = _color2, text_halign = 'center', text_size = 11, bgcolor = _bgcolor2, text_font_family = font.family_monospace, text_formatting = text.format_bold)
+        colIndex += 1
+    if _showDailyATR
+        atr_text = 'ATR(14): ' + str.tostring(daily_atr, '#.##')
+        table.cell(_info, 0, colIndex, atr_text, text_color = _color2, text_halign = 'center', text_size = 11, bgcolor = _bgcolor2, text_font_family = font.family_monospace, text_formatting = text.format_bold)
+        colIndex += 1
+    if show_range_row
+        range_text = 'Range: ' + str.tostring(daily_range, '#.##')
+        table.cell(_info, 0, colIndex, range_text, text_color = _color2, text_halign = 'center', text_size = 11, bgcolor = _bgcolor2, text_font_family = font.family_monospace, text_formatting = text.format_bold)
+        colIndex += 1
 //#endregion
