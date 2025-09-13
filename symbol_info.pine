@@ -102,7 +102,7 @@ var float session_low = na
 var int session_day = na
 ny_day = dayofmonth(time, 'America/New_York')
 
-if in_session and ny_day != session_day
+if in_session and (na(session_day) or ny_day != session_day)
     session_high := high
     session_low := low
     session_day := ny_day
