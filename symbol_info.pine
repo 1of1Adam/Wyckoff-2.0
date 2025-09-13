@@ -1,0 +1,168 @@
+//@version=6
+indicator('Symbol Info', overlay = true)
+
+//#region[FUNCTIONS]
+// Box Location Helper
+boxLoc(_loc) =>
+    loc = switch _loc
+        'Top-Left' => position.top_left
+        'Top-Center' => position.top_center
+        'Top-Right' => position.top_right
+        'Middle-Left' => position.middle_left
+        'Middle-Center' => position.middle_center
+        'Middle-Right' => position.middle_right
+        'Bottom-Left' => position.bottom_left
+        'Bottom-Center' => position.bottom_center
+        'Bottom-Right' => position.bottom_right
+    loc
+
+// 倒计时函数，增加负数检测
+countdown(tf) =>
+    til_next = time_close(tf) / 1000 - timenow / 1000
+    if til_next > 0
+        next_min = math.floor(til_next / 60)
+        next_sec = til_next - next_min * 60
+        str.tostring(next_min, '00') + ':' + str.tostring(next_sec, '00')
+    else
+        ""
+
+// Removed string-to-size conversion; sizes are now direct integer inputs
+
+// 强制刷新机制，调用BTC/ETH，确保秒级刷新
+plot(request.security('COINBASE:BTCUSD', '1', close), display = display.none)
+
+//#endregion
+
+//#region[INPUTS]
+// SYMBOL INFO
+_showInfo = input.bool(true, title = 'Show?', inline = 's2.1', group = 'Symbol Info')
+_color2 = input.color(#000000, title = '', inline = 's2.1', group = 'Symbol Info')
+_bgcolor2 = input.color(#fcfcfc, title = '', inline = 's2.1', group = 'Symbol Info')
+_showBrdr2 = input.bool(false, title = 'Hide Border?', inline = 's2.1', group = 'Symbol Info')
+_y2 = input.string('Top', title = '', inline = 's2.2', group = 'Symbol Info', options = ['Top', 'Middle', 'Bottom'])
+_x2 = input.string('Right', title = '', inline = 's2.2', group = 'Symbol Info', options = ['Left', 'Center', 'Right'])
+_showIsym = input.bool(true, title = 'Symbol?', inline = 's2.3', group = 'Symbol Info')
+_showIdate = input.bool(false, title = 'Date?', inline = 's2.3', group = 'Symbol Info')
+_showCountdown = input.bool(true, title = 'Countdown?', inline = 's2.3', group = 'Symbol Info')
+_showDailyATR = input.bool(true, title = 'Daily ATR(14)?', inline = 'v1', group = 'Volatility')
+_showDailyRange = input.bool(true, title = 'Daily Range?', inline = 'v1', group = 'Volatility')
+
+// TEXT SIZES
+_symSize = input.int(14, title = 'Symbol Size', group = 'Text Size', minval = 1, tooltip = 'Font size in points')
+_countSize = input.int(14, title = 'Countdown Size', group = 'Text Size', minval = 1, tooltip = 'Font size in points')
+_dateSize = input.int(14, title = 'Date Size', group = 'Text Size', minval = 1, tooltip = 'Font size in points')
+_atrSize = input.int(14, title = 'ATR Size', group = 'Text Size', minval = 1, tooltip = 'Font size in points')
+_rangeSize = input.int(14, title = 'Range Size', group = 'Text Size', minval = 1, tooltip = 'Font size in points')
+
+// BOLD STYLE TOGGLES
+_symBold = input.bool(true, title = 'Symbol Bold?', group = 'Bold Style')
+_countBold = input.bool(true, title = 'Countdown Bold?', group = 'Bold Style')
+_dateBold = input.bool(true, title = 'Date Bold?', group = 'Bold Style')
+_rangeBold = input.bool(true, title = 'Range Bold?', group = 'Bold Style')
+_atrBold = input.bool(true, title = 'ATR Bold?', group = 'Bold Style')
+//#endregion
+
+//#region[LOGIC]
+// Table Location
+infoLOC = boxLoc(_y2 + '-' + _x2)
+
+// Get Current Date
+date = str.tostring(year(time_close)) + "/" + (month(time_close) < 10 ? "0" : "") + str.tostring(month(time_close)) + "/" + (dayofmonth(time_close) < 10 ? "0" : "") + str.tostring(dayofmonth(time_close))
+
+// Get Current Timeframe
+num_tf = if timeframe.isminutes
+    if str.tonumber(timeframe.period) % 60 == 0
+        str.tostring(str.tonumber(timeframe.period) / 60)
+    else
+        timeframe.period
+else
+    timeframe.period
+
+text_tf = if timeframe.isminutes
+    if str.tonumber(timeframe.period) % 60 == 0
+        'H'
+    else
+        'm'
+else
+    na
+
+tf = num_tf + text_tf
+
+// 日 ATR(14)
+daily_atr = request.security(syminfo.tickerid, '1D', ta.atr(14))
+
+// 纽约交易时段检测 (9:30-16:00)
+in_session = not na(time(timeframe.period, '0930-1600', 'America/New_York'))
+
+// 记录日内最高价和最低价
+var float session_high = na
+var float session_low = na
+var int session_day = na
+ny_day = dayofmonth(time, 'America/New_York')
+
+if in_session and (na(session_day) or ny_day != session_day)
+    session_high := high
+    session_low := low
+    session_day := ny_day
+else if in_session
+    session_high := na(session_high) ? high : math.max(session_high, high)
+    session_low := na(session_low) ? low : math.min(session_low, low)
+
+// 仅在交易时段内计算当日波动区间（绝对值）
+daily_range = in_session ? math.abs(session_high - session_low) : na
+//#endregion
+
+//#region[PLOT]
+// Symbol Info Display
+if _showInfo and barstate.islast
+    show_range = _showDailyRange and not na(daily_range)
+    show_atr = _showDailyATR
+    show_vol_row = show_range or show_atr
+    rows = 0
+    rows += _showIsym ? 1 : 0
+    rows += _showCountdown ? 1 : 0
+    rows += _showIdate ? 1 : 0
+    rows += show_vol_row ? 1 : 0
+    _info = table.new(infoLOC, 3, rows, frame_color = _color2, frame_width = _showBrdr2 ? 0 : 1, border_width = 1, border_color = color.black)
+    row = 0
+    if _showIsym
+        table.merge_cells(_info, 0, row, 2, row)
+        table.cell(_info, 0, row, syminfo.root + '  ' + tf, text_color = _color2, text_halign = 'center', text_size = _symSize, bgcolor = _bgcolor2)
+        if _symBold
+            table.cell_set_text_format(_info, 0, row, text.format_bold)
+        row += 1
+    if _showCountdown
+        table.merge_cells(_info, 0, row, 2, row)
+        countdown_value = countdown(timeframe.period)
+        display_count = countdown_value != "" ? countdown_value : "00:00"
+        table.cell(_info, 0, row, display_count, text_color = _color2, text_halign = 'center', text_size = _countSize, bgcolor = _bgcolor2, text_font_family = font.family_monospace)
+        if _countBold
+            table.cell_set_text_format(_info, 0, row, text.format_bold)
+        row += 1
+    if _showIdate
+        table.merge_cells(_info, 0, row, 2, row)
+        table.cell(_info, 0, row, date, text_color = _color2, text_halign = 'center', text_size = _dateSize, bgcolor = _bgcolor2, text_font_family = font.family_monospace)
+        if _dateBold
+            table.cell_set_text_format(_info, 0, row, text.format_bold)
+        row += 1
+    if show_vol_row
+        if show_range and show_atr
+            table.cell(_info, 0, row, str.tostring(daily_range, '#.##'), text_color = _color2, text_halign = 'center', text_size = _rangeSize, bgcolor = _bgcolor2, text_font_family = font.family_monospace)
+            if _rangeBold
+                table.cell_set_text_format(_info, 0, row, text.format_bold)
+            table.cell(_info, 1, row, '|', text_color = _color2, text_halign = 'center', text_size = math.max(_rangeSize, _atrSize), bgcolor = _bgcolor2)
+            table.cell(_info, 2, row, str.tostring(daily_atr, '#.##'), text_color = _color2, text_halign = 'center', text_size = _atrSize, bgcolor = _bgcolor2, text_font_family = font.family_monospace)
+            if _atrBold
+                table.cell_set_text_format(_info, 2, row, text.format_bold)
+        else if show_range
+            table.merge_cells(_info, 0, row, 2, row)
+            table.cell(_info, 0, row, str.tostring(daily_range, '#.##'), text_color = _color2, text_halign = 'center', text_size = _rangeSize, bgcolor = _bgcolor2, text_font_family = font.family_monospace)
+            if _rangeBold
+                table.cell_set_text_format(_info, 0, row, text.format_bold)
+        else if show_atr
+            table.merge_cells(_info, 0, row, 2, row)
+            table.cell(_info, 0, row, str.tostring(daily_atr, '#.##'), text_color = _color2, text_halign = 'center', text_size = _atrSize, bgcolor = _bgcolor2, text_font_family = font.family_monospace)
+            if _atrBold
+                table.cell_set_text_format(_info, 0, row, text.format_bold)
+        row += 1
+//#endregion
