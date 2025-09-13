@@ -26,6 +26,17 @@ countdown(tf) =>
     else
         ""
 
+// 将字符串转换为有效的 text_size 值
+toSize(_s) =>
+    s = str.lower(_s)
+    s == 'auto' ? size.auto :
+    s == 'tiny' ? size.tiny :
+    s == 'small' ? size.small :
+    s == 'normal' ? size.normal :
+    s == 'large' ? size.large :
+    s == 'huge' ? size.huge :
+    nz(int(str.tonumber(_s)), size.normal)
+
 // 强制刷新机制，调用BTC/ETH，确保秒级刷新
 plot(request.security('COINBASE:BTCUSD', '1', close), display = display.none)
 
@@ -39,12 +50,18 @@ _bgcolor2 = input.color(#fcfcfc, title = '', inline = 's2.1', group = 'Symbol In
 _showBrdr2 = input.bool(false, title = 'Hide Border?', inline = 's2.1', group = 'Symbol Info')
 _y2 = input.string('Top', title = '', inline = 's2.2', group = 'Symbol Info', options = ['Top', 'Middle', 'Bottom'])
 _x2 = input.string('Right', title = '', inline = 's2.2', group = 'Symbol Info', options = ['Left', 'Center', 'Right'])
-_size2 = input.string('Small', title = '', inline = 's2.2', group = 'Symbol Info', options = ['Tiny', 'Small', 'Normal', 'Large', 'Huge'])
 _showIsym = input.bool(true, title = 'Symbol?', inline = 's2.3', group = 'Symbol Info')
 _showIdate = input.bool(false, title = 'Date?', inline = 's2.3', group = 'Symbol Info')
 _showCountdown = input.bool(true, title = 'Countdown?', inline = 's2.3', group = 'Symbol Info')
 _showDailyATR = input.bool(true, title = 'Daily ATR(14)?', inline = 'v1', group = 'Volatility')
 _showDailyRange = input.bool(true, title = 'Daily Range?', inline = 'v1', group = 'Volatility')
+
+// TEXT SIZES
+_symSize = input.string('Normal', title = 'Symbol Size', group = 'Text Size', tooltip = 'Positive integer or size.auto/tiny/small/normal/large/huge')
+_countSize = input.string('Normal', title = 'Countdown Size', group = 'Text Size', tooltip = 'Positive integer or size.auto/tiny/small/normal/large/huge')
+_dateSize = input.string('Normal', title = 'Date Size', group = 'Text Size', tooltip = 'Positive integer or size.auto/tiny/small/normal/large/huge')
+_atrSize = input.string('Normal', title = 'ATR Size', group = 'Text Size', tooltip = 'Positive integer or size.auto/tiny/small/normal/large/huge')
+_rangeSize = input.string('Normal', title = 'Range Size', group = 'Text Size', tooltip = 'Positive integer or size.auto/tiny/small/normal/large/huge')
 //#endregion
 
 //#region[LOGIC]
@@ -109,22 +126,22 @@ if _showInfo
     _info = table.new(infoLOC, 1, cols, frame_color = _color2, frame_width = _showBrdr2 ? 0 : 1, border_width = 1, border_color = color.black)
     colIndex = 0
     if _showIsym
-        table.cell(_info, 0, colIndex, syminfo.root+ '  ' + tf, text_color = _color2, text_halign = 'center', text_size = 11, bgcolor = _bgcolor2, text_formatting = text.format_bold)
+        table.cell(_info, 0, colIndex, syminfo.root+ '  ' + tf, text_color = _color2, text_halign = 'center', text_size = toSize(_symSize), bgcolor = _bgcolor2, text_formatting = text.format_bold)
         colIndex += 1
     if _showCountdown
         countdown_value = countdown(timeframe.period)
         if countdown_value != ""
-            table.cell(_info, 0, colIndex, countdown_value, text_color = _color2, text_halign = 'center', text_size = 14, bgcolor = _bgcolor2, text_font_family = font.family_monospace, text_formatting = text.format_bold)
+            table.cell(_info, 0, colIndex, countdown_value, text_color = _color2, text_halign = 'center', text_size = toSize(_countSize), bgcolor = _bgcolor2, text_font_family = font.family_monospace, text_formatting = text.format_bold)
         colIndex += 1
     if _showIdate
-        table.cell(_info, 0, colIndex, date, text_color = _color2, text_halign = 'center', text_size = 11, bgcolor = _bgcolor2, text_font_family = font.family_monospace, text_formatting = text.format_bold)
+        table.cell(_info, 0, colIndex, date, text_color = _color2, text_halign = 'center', text_size = toSize(_dateSize), bgcolor = _bgcolor2, text_font_family = font.family_monospace, text_formatting = text.format_bold)
         colIndex += 1
     if _showDailyATR
         atr_text = 'ATR(14): ' + str.tostring(daily_atr, '#.##')
-        table.cell(_info, 0, colIndex, atr_text, text_color = _color2, text_halign = 'center', text_size = 11, bgcolor = _bgcolor2, text_font_family = font.family_monospace, text_formatting = text.format_bold)
+        table.cell(_info, 0, colIndex, atr_text, text_color = _color2, text_halign = 'center', text_size = toSize(_atrSize), bgcolor = _bgcolor2, text_font_family = font.family_monospace, text_formatting = text.format_bold)
         colIndex += 1
     if show_range_row
         range_text = 'Range: ' + str.tostring(daily_range, '#.##')
-        table.cell(_info, 0, colIndex, range_text, text_color = _color2, text_halign = 'center', text_size = 11, bgcolor = _bgcolor2, text_font_family = font.family_monospace, text_formatting = text.format_bold)
+        table.cell(_info, 0, colIndex, range_text, text_color = _color2, text_halign = 'center', text_size = toSize(_rangeSize), bgcolor = _bgcolor2, text_font_family = font.family_monospace, text_formatting = text.format_bold)
         colIndex += 1
 //#endregion
