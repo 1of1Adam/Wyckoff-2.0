@@ -133,9 +133,9 @@ if _showInfo
     if _showCountdown
         table.merge_cells(_info, 0, row, 2, row)
         countdown_value = countdown(timeframe.period)
-        if countdown_value != ""
-            count_fmt = _countBold ? text.format_bold : text.format_none
-            table.cell(_info, 0, row, countdown_value, text_color = _color2, text_halign = 'center', text_size = _countSize, bgcolor = _bgcolor2, text_font_family = font.family_monospace, text_formatting = count_fmt)
+        count_fmt = _countBold ? text.format_bold : text.format_none
+        display_count = countdown_value != "" ? countdown_value : "00:00"
+        table.cell(_info, 0, row, display_count, text_color = _color2, text_halign = 'center', text_size = _countSize, bgcolor = _bgcolor2, text_font_family = font.family_monospace, text_formatting = count_fmt)
         row += 1
     if _showIdate
         table.merge_cells(_info, 0, row, 2, row)
