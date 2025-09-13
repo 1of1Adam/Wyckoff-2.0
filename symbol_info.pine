@@ -26,25 +26,6 @@ countdown(tf) =>
     else
         ""
 
-// 纽约时间函数（手动修正夏令时）
-nyc_clock_fixed() =>
-    utc_hour = hour(timenow)  // 当前UTC小时
-    utc_min = minute(timenow)
-    utc_sec = second(timenow)
-    
-    // 判断是否为夏令时期间 (3月第二个星期日到11月第一个星期日)
-    is_dst = (month(timenow) > 3 and month(timenow) < 11) or
-      (month(timenow) == 3 and dayofweek(timenow) >= 7 and dayofmonth(timenow) >= 8) or
-      (month(timenow) == 11 and dayofweek(timenow) <= 7 and dayofmonth(timenow) <= 7)
-    
-    offset = is_dst ? -4 : -5  // 夏令时UTC-4，否则UTC-5
-    
-    ny_hour = (utc_hour +1 + 24) % 24  // 防止小时负数，+24后取余
-    hour_str = str.tostring(ny_hour, '00')
-    min_str = str.tostring(utc_min, '00')
-    sec_str = str.tostring(utc_sec, '00')
-    hour_str + ':' + min_str
-
 // 强制刷新机制，调用BTC/ETH，确保秒级刷新
 plot(request.security('COINBASE:BTCUSD', '1', close), display = display.none)
 
@@ -62,7 +43,6 @@ _size2 = input.string('Small', title = '', inline = 's2.2', group = 'Symbol Info
 _showIsym = input.bool(true, title = 'Symbol?', inline = 's2.3', group = 'Symbol Info')
 _showIdate = input.bool(false, title = 'Date?', inline = 's2.3', group = 'Symbol Info')
 _showCountdown = input.bool(true, title = 'Countdown?', inline = 's2.3', group = 'Symbol Info')
-_showNYCtime = input.bool(true, title = 'Show NYC Time?', inline = 's2.3', group = 'Symbol Info')  // 新增纽约时间选项
 _showDailyATR = input.bool(true, title = 'Daily ATR(14)?', inline = 'v1', group = 'Volatility')
 _showDailyRange = input.bool(true, title = 'Daily Range?', inline = 'v1', group = 'Volatility')
 //#endregion
@@ -93,12 +73,6 @@ else
 
 tf = num_tf + text_tf
 
-// 当前时间框架倒计时
-countdown_tf = countdown(timeframe.period)
-
-// 纽约时间
-nyc_time_fixed = nyc_clock_fixed()
-
 // 日 ATR(14)
 daily_atr = request.security(syminfo.tickerid, '1D', ta.atr(14))
 
@@ -119,8 +93,8 @@ else if in_session
     session_high := na(session_high) ? high : math.max(session_high, high)
     session_low := na(session_low) ? low : math.min(session_low, low)
 
-// 仅在交易时段内计算日内波动区间
-daily_range = in_session ? session_high - session_low : na
+// 仅在交易时段内计算当日波动区间（绝对值）
+daily_range = in_session ? math.abs(session_high - session_low) : na
 //#endregion
 
 //#region[PLOT]
@@ -130,7 +104,6 @@ if _showInfo
     cols = 1
     cols += _showCountdown ? 1 : 0
     cols += _showIdate ? 1 : 0
-    cols += _showNYCtime ? 1 : 0
     cols += _showDailyATR ? 1 : 0
     cols += show_range_row ? 1 : 0
     _info = table.new(infoLOC, 1, cols, frame_color = _color2, frame_width = _showBrdr2 ? 0 : 1, border_width = 1, border_color = color.black)
@@ -145,9 +118,6 @@ if _showInfo
         colIndex += 1
     if _showIdate
         table.cell(_info, 0, colIndex, date, text_color = _color2, text_halign = 'center', text_size = 11, bgcolor = _bgcolor2, text_font_family = font.family_monospace, text_formatting = text.format_bold)
-        colIndex += 1
-    if _showNYCtime
-        table.cell(_info, 0, colIndex, nyc_time_fixed, text_color = _color2, text_halign = 'center', text_size = 11, bgcolor = _bgcolor2, text_font_family = font.family_monospace, text_formatting = text.format_bold)
         colIndex += 1
     if _showDailyATR
         atr_text = 'ATR(14): ' + str.tostring(daily_atr, '#.##')
